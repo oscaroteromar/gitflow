@@ -276,6 +276,26 @@ cmd_finish() {
 		fi
 	fi
 
+	# try to merge into second develop branch (dev2)
+	# in case a previous attempt to finish this release branch has failed,
+	# but the merge into dev2 was successful, we skip it now
+	local DEVELOP2_BRANCH=$(git config --get gitflow.branch.develop2)
+	if [ -n "$DEVELOP2_BRANCH" ] && ! git_is_branch_merged_into "$BRANCH" "$DEVELOP2_BRANCH"; then
+		git_do checkout "$DEVELOP2_BRANCH" || \
+		  die "Could not check out $DEVELOP2_BRANCH."
+
+		if noflag squash; then
+			git_do merge --no-ff "$BRANCH" || \
+				die "There were merge conflicts."
+				# TODO: What do we do now?
+		else
+			git_do merge --squash "$BRANCH" || \
+				die "There were merge conflicts."
+				# TODO: What do we do now?
+			git_do commit
+		fi
+	fi
+
 	# delete branch
 	if noflag keep; then
 		if [ "$BRANCH" = "$(git_current_branch)" ]; then
@@ -287,6 +307,10 @@ cmd_finish() {
 	if flag push; then
 		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
 			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
+		if [ -n "$DEVELOP2_BRANCH" ]; then
+			git_do push "$ORIGIN" "$DEVELOP2_BRANCH" || \
+				die "Could not push to $DEVELOP2_BRANCH from $ORIGIN."
+		fi
 		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
 			die "Could not push to $MASTER_BRANCH from $ORIGIN."
 		if noflag notag; then
@@ -305,13 +329,20 @@ cmd_finish() {
 		echo "- The release was tagged '$tagname'"
 	fi
 	echo "- Release branch has been back-merged into '$DEVELOP_BRANCH'"
+	if [ -n "$DEVELOP2_BRANCH" ]; then
+		echo "- Release branch has been back-merged into '$DEVELOP2_BRANCH'"
+	fi
 	if flag keep; then
 		echo "- Release branch '$BRANCH' is still available"
 	else
 		echo "- Release branch '$BRANCH' has been deleted"
 	fi
 	if flag push; then
-		echo "- '$DEVELOP_BRANCH', '$MASTER_BRANCH' and tags have been pushed to '$ORIGIN'"
+		echo "- '$DEVELOP_BRANCH'"
+		if [ -n "$DEVELOP2_BRANCH" ]; then
+			echo "  '$DEVELOP2_BRANCH'"
+		fi
+		echo "  '$MASTER_BRANCH' and tags have been pushed to '$ORIGIN'"
 		echo "- Release branch '$BRANCH' in '$ORIGIN' has been deleted."
 	fi
 	echo

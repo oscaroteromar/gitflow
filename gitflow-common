@@ -175,6 +175,11 @@ gitflow_has_develop_configured() {
 	[ "$develop" != "" ] && git_local_branch_exists "$develop"
 }
 
+gitflow_has_develop2_configured() {
+	local develop2=$(git config --get gitflow.branch.develop2)
+	[ "$develop2" != "" ] && git_local_branch_exists "$develop2"
+}
+
 gitflow_has_prefixes_configured() {
 	git config --get gitflow.prefix.feature >/dev/null 2>&1     && \
 	git config --get gitflow.prefix.release >/dev/null 2>&1     && \
